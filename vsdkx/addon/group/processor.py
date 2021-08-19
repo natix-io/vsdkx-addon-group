@@ -1,8 +1,10 @@
 import numpy as np
+from vsdkx.core.interfaces import Addon
+from vsdkx.core.structs import Inference
 from sklearn.cluster import AgglomerativeClustering
 
 
-class GroupProcessor:
+class GroupProcessor(Addon):
     """
     Clusters the detected bounding boxes into groups, based on the distance
     between the bounding boxes:
@@ -17,21 +19,17 @@ class GroupProcessor:
         considered a group
     """
 
-    def __init__(self, distance_threshold, min_group_size):
-        """
-        Args:
-            distance_threshold (int | float): Distance threshold required by
-            the clustering algorithm
-            min_group_size (int): Minimum amount of detected people to be
-            considered a group
-        """
+    def __init__(self, addon_config: dict, model_settings: dict,
+                 model_config: dict, drawing_config: dict):
+        super().__init__(addon_config, model_settings, model_config,
+                         drawing_config)
         self.cluster = AgglomerativeClustering(
             affinity='euclidean',
             linkage='complete',
             compute_distances=False,
-            distance_threshold=distance_threshold,
+            distance_threshold=addon_config["distance_threshold"],
             n_clusters=None)
-        self.min_group_size = min_group_size
+        self.min_group_size = addon_config["min_group_size"]
 
     def get_centroids(self, boxes):
         """
@@ -171,19 +169,12 @@ class GroupProcessor:
             centroids_list.append(centroid)
         return np.array(cluster_boxes), np.array(centroids_list)
 
-    def post_process(self, boxes, trackable_objects):
+    def post_process(self, frame, inference: Inference) -> Inference:
         """
         Clusters the given bounding boxes to small clusters by their distance
-
-        Args:
-            boxes (np.array): Array with detected bounding boxes
-            trackable_objects (dict): Dictionary with trackable objects
-        Returns:
-            (np.array): Array with cluster IDs
-            (list): List with people counts per group
         """
         groups = []
-        boxes = np.array(boxes)
+        boxes = np.array(Inference.boxes)
         people_count = 0
 
         if len(boxes) > 1:

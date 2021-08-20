@@ -323,7 +323,7 @@ class GroupProcessor(Addon):
         Args:
             addon_object (AddonObject):
         Returns:
-            (AddonObject):
+            (AddonObject): addon object has updated information for inference result
         """
         groups = []
         people_count = 0

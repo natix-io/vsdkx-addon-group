@@ -14,7 +14,10 @@ setup(
     install_requires=[
         'vsdkx-core',
         'vsdkx-addon-tracking',
+        'chinese-whispers==0.7.4',
         'scikit-learn>=0.24.1',
+        'networkx==2.5.1',
+        'scipy>=1.4.1',
         'numpy>=1.18.5',
     ],
     version='1.0',

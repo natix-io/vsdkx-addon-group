@@ -8,8 +8,8 @@ setup(
     namespace_packages=['vsdkx', 'vsdkx.addon'],
     packages=find_namespace_packages(include=['vsdkx*']),
     dependency_links=[
-        'git+https://gitlab+deploy-token-485942:VJtus51fGR59sMGhxHUF@gitlab.com/natix/cvison/vsdkx/vsdkx-core.git#egg=vsdkx-core',
-        'git+https://gitlab+deploy-token-488350:1jt8j5EcWg5gfvRF4Bq1@gitlab.com/natix/cvison/vsdkx/vsdkx-addon-tracking'
+        'https://github.com/natix-io/vsdkx-core.git#egg=vsdkx-core',
+        'https://github.com/natix-io/vsdkx-addon-tracking.git#egg=vsdkx-addon-tracking'
     ],
     install_requires=[
         'vsdkx-core',

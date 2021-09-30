@@ -1,12 +1,12 @@
-import numpy as np
 import networkx as nx
-
+import numpy as np
+from chinese_whispers import chinese_whispers, aggregate_clusters
+from scipy.spatial import distance as dist
+from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import MinMaxScaler
-from scipy.spatial import distance as dist
-
 from vsdkx.core.interfaces import Addon
-from vsdkx.core.structs import AddonObject, Inference
+from vsdkx.core.structs import AddonObject
 
 
 class GroupProcessor(Addon):
@@ -31,11 +31,21 @@ class GroupProcessor(Addon):
         super().__init__(addon_config, model_settings, model_config,
                          drawing_config)
 
-        self.distance_threshold = 0.5
+        self.clustering_algorithm = addon_config.get('algorithm',
+                                                     'dbscan').lower()
+
+        self.min_group_size = addon_config.get('min_group_size', 2)
         self.temporal_len = 6
         self.feat_size = (self.temporal_len * 2) + 3
-        self.min_group_size = addon_config["min_group_size"]
-        self.cluster = self.DBSCAN_clustering(distance_threshold_update=False)
+
+        if self.clustering_algorithm == 'dbscan':
+            self.distance_threshold = 0.5
+
+        elif self.clustering_algorithm == 'agglomerative':
+            self.distance_threshold = 0.2
+
+        elif self.clustering_algorithm == 'chinesewhispers':
+            self.distance_threshold = 0.2
 
     def DBSCAN_clustering(self,
                           centroids=None,
@@ -61,24 +71,6 @@ class GroupProcessor(Addon):
                          metric='euclidean')
 
         return cluster
-
-    def get_centroids(self, boxes):
-        """
-        Calculates each boxes' centroid
-        Args:
-            boxes (np.array): Array with detected bounding boxes
-
-        Returns:
-            (list): List with centroids
-        """
-
-        centroids = []
-
-        for box in boxes:
-            c = (int((box[0] + box[2]) / 2), int((box[1] + box[3]) / 2))
-            centroids.append(c)
-
-        return centroids
 
     def bb_intersection_over_union(self, box_a, box_b):
         """
@@ -121,8 +113,6 @@ class GroupProcessor(Addon):
         """
 
         centroids = []
-
-        pi = 3.14
         degrees_half = 180
         degrees_full = 360
         filtered_boxes = []
@@ -138,7 +128,7 @@ class GroupProcessor(Addon):
                     width = int(box[2] - box[0])
                     height = int(box[3] - box[1])
 
-                    distance = (2 * pi * degrees_half) / \
+                    distance = (2 * np.pi * degrees_half) / \
                                (width + height * degrees_full) * 1000 + 3
 
                     if len(to_obj.centroids) >= self.temporal_len:
@@ -207,7 +197,13 @@ class GroupProcessor(Addon):
         if len(boxes) < len(features):
             print('ERROR! ')
 
+        if self.clustering_algorithm == 'chinesewhispers':
+            features = dist.cdist(features, features, metric='euclidean')
+
         features = MinMaxScaler().fit_transform(features)
+
+        if self.clustering_algorithm == 'chinesewhispers':
+            features[features > self.distance_threshold] = 0
 
         return features, centroids[:, 4:6], np.array(filtered_boxes)
 
@@ -310,11 +306,77 @@ class GroupProcessor(Addon):
         cluster_boxes = []
         centroids_list = []
         for idx in indexes:
-            box = boxes[idx[0]]
-            centroid = centroids[idx[0]]
+            if self.clustering_algorithm == 'chinesewhispers':
+                box = boxes[idx]
+                centroid = centroids[idx]
+            else:
+                box = boxes[idx[0]]
+                centroid = centroids[idx[0]]
             cluster_boxes.append(box)
             centroids_list.append(centroid)
+
         return np.array(cluster_boxes), np.array(centroids_list)
+
+    def agglomerative_clustering(self,
+                                 centroids=None,
+                                 distance_threshold_update=True):
+        """
+        Inits AgglomerativeClustering & Updates distance threshold
+
+        Returns:
+            cluster (AgglomerativeClustering): Clustering object
+        """
+
+        if distance_threshold_update:
+            distances = np.unique(
+                dist.cdist(centroids, centroids))
+
+            distance_threshold = abs(distances.mean() - distances.std())
+
+            self.distance_threshold = distance_threshold * 0.05 + \
+                                      self.distance_threshold * 0.95
+
+        cluster = AgglomerativeClustering(
+            affinity='euclidean',
+            linkage='ward',
+            compute_distances=False,
+            distance_threshold=self.distance_threshold,
+            n_clusters=None)
+
+        return cluster
+
+    def get_centroids(self, boxes):
+        """
+        Calculates each boxes' centroid
+        Args:
+            boxes (np.array): Array with detected bounding boxes
+
+        Returns:
+            (list): List with centroids
+        """
+
+        centroids = []
+
+        for box in boxes:
+            c = (int((box[0] + box[2]) / 2), int((box[1] + box[3]) / 2))
+            centroids.append(c)
+
+        return centroids
+
+    def update_distance_threshold(self, centroids):
+        """
+        Updates distance threshold
+
+        Args:
+            centroids (np.array): Array with centroids
+        """
+        distances = np.unique(
+            dist.cdist(centroids, centroids))
+
+        distance_threshold = abs(distances.mean() - distances.std())
+
+        self.distance_threshold = distance_threshold * 0.05 + \
+                                  self.distance_threshold * 0.95
 
     def post_process(self, addon_object: AddonObject) -> AddonObject:
         """
@@ -335,19 +397,46 @@ class GroupProcessor(Addon):
             # Get the bounding boxes centroids
             features, centroids, boxes = self.get_features(boxes,
                                                            trackable_objects)
-            self.cluster = self.DBSCAN_clustering(
-                centroids=features[:, temporal_data - 2:temporal_data],
-                distance_threshold_update=True)
+
+            if self.clustering_algorithm == 'dbscan':
+                self.cluster = self.DBSCAN_clustering(
+                    centroids=features[:, temporal_data - 2:temporal_data],
+                    distance_threshold_update=True)
+                # Cluster the centroids
+                y = self.cluster.fit(features)
+                # Separate them into groups > self.min_group_size
+                groups, people_count = self.get_groups(boxes,
+                                                       y.labels_,
+                                                       centroids)
+
+            elif self.clustering_algorithm == 'agglomerative':
+                self.cluster = self.agglomerative_clustering(
+                    centroids=features[:, temporal_data - 2:temporal_data],
+                    distance_threshold_update=True)
+                # Cluster the centroids
+                y = self.cluster.fit(features)
+                # Separate them into groups > self.min_group_size
+                groups, people_count = self.get_groups(boxes,
+                                                       y.labels_,
+                                                       centroids)
+
+            elif self.clustering_algorithm == 'chinesewhispers':
+                self.update_distance_threshold(
+                    centroids=features[:, temporal_data - 2:temporal_data])
+
+                print(f'Length of detected boxes {len(centroids)}'
+                      f' length of trackable objects {len(trackable_objects)}')
+                # Cluster the centroids
+                G = nx.from_numpy_matrix(features)
+                chinese_whispers(G, seed=1337)
+                y = aggregate_clusters(G)
+                # Separate them into groups > self.min_group_size
+                groups, people_count = self.get_groups(boxes,
+                                                       y,
+                                                       centroids)
 
             print(f'Length of detected boxes {len(centroids)}'
                   f' length of trackable objects {len(trackable_objects)}')
-            # Cluster the centroids
-            y = self.cluster.fit(features)
-            # Separate them into groups > self.min_group_size
-            groups, people_count = self.get_groups(boxes,
-                                                   y.labels_,
-                                                   centroids)
-
         addon_object.inference.extra['tracked_groups'] = groups
         addon_object.inference.extra['objects_in_groups'] = people_count
 

@@ -45,7 +45,7 @@ class GroupProcessor(Addon):
         elif self.clustering_algorithm == 'chinesewhispers':
             self.distance_threshold = 0.2
 
-    def DBSCAN_clustering(self,
+    def dbscan_clustering(self,
                           centroids=None,
                           distance_threshold_update=True):
         """
@@ -56,13 +56,7 @@ class GroupProcessor(Addon):
         """
 
         if distance_threshold_update:
-            distances = np.unique(
-                dist.cdist(centroids, centroids))
-
-            distance_threshold = abs(distances.mean() - distances.std())
-
-            self.distance_threshold = distance_threshold * 0.05 + \
-                                      self.distance_threshold * 0.95
+            self.update_distance_threshold(centroids=centroids)
 
         cluster = DBSCAN(eps=self.distance_threshold,
                          min_samples=1,
@@ -70,7 +64,23 @@ class GroupProcessor(Addon):
 
         return cluster
 
-    def bb_intersection_over_union(self, box_a, box_b):
+    def update_distance_threshold(self, centroids):
+        """
+        Updates distance threshold
+
+        Args:
+            centroids (np.array): Array with centroids
+        """
+        distances = np.unique(
+            dist.cdist(centroids, centroids))
+
+        distance_threshold = abs(distances.mean() - distances.std())
+
+        self.distance_threshold = distance_threshold * 0.05 + \
+                                  self.distance_threshold * 0.95
+
+    @staticmethod
+    def bb_intersection_over_union(box_a, box_b):
         """
         Finds the intersection over union between two bounding boxes
         Args:
@@ -111,6 +121,7 @@ class GroupProcessor(Addon):
         """
 
         centroids = []
+        pi = 3.14
         degrees_half = 180
         degrees_full = 360
         filtered_boxes = []
@@ -126,7 +137,7 @@ class GroupProcessor(Addon):
                     width = int(box[2] - box[0])
                     height = int(box[3] - box[1])
 
-                    distance = (2 * np.pi * degrees_half) / \
+                    distance = (2 * pi * degrees_half) / \
                                (width + height * degrees_full) * 1000 + 3
 
                     if len(to_obj.centroids) >= self.temporal_len:
@@ -211,8 +222,8 @@ class GroupProcessor(Addon):
 
         Args:
             boxes (np.array): Array with bounding boxes
-            clusters (list): List with cluster IDs
-            centroids (tuple): Tuple with centroids
+            clusters (np.array): List with cluster IDs
+            centroids (np.array): Tuple with centroids
 
         Returns:
             (list): List of group bounding box
@@ -234,6 +245,9 @@ class GroupProcessor(Addon):
                 # Get the bounding boxes that correspond to that group
                 cluster_boxes, cluster_centroids = \
                     self.get_cluster_boxes(boxes, idx, centroids)
+
+                if self.clustering_algorithm == 'chinesewhispers':
+                    cluster_boxes = np.squeeze(cluster_boxes, axis=1)
 
                 group_box = np.array([min(cluster_boxes[:, 0]),
                                       min(cluster_boxes[:, 1]),
@@ -343,7 +357,8 @@ class GroupProcessor(Addon):
 
         return cluster
 
-    def get_centroids(self, boxes):
+    @staticmethod
+    def get_centroids(boxes):
         """
         Calculates each boxes' centroid
         Args:
@@ -361,20 +376,23 @@ class GroupProcessor(Addon):
 
         return centroids
 
-    def update_distance_threshold(self, centroids):
-        """
-        Updates distance threshold
+    @staticmethod
+    def extract_cluster_ids(prediction_dict: dict) -> np.ndarray:
+        '''
+        Extracts cluster ids from ChinesWhispers algorithm's prediction
 
         Args:
-            centroids (np.array): Array with centroids
-        """
-        distances = np.unique(
-            dist.cdist(centroids, centroids))
+            prediction_dict: dict with predictions
 
-        distance_threshold = abs(distances.mean() - distances.std())
+        Returns:
+            (np.ndarray): list with cluster ids
+        '''
+        cluster_ids = []
+        for key, values in prediction_dict.items():
+            for _ in range(len(values)):
+                cluster_ids.append(key)
 
-        self.distance_threshold = distance_threshold * 0.05 + \
-                                  self.distance_threshold * 0.95
+        return np.array(cluster_ids)
 
     def post_process(self, addon_object: AddonObject) -> AddonObject:
         """
@@ -397,7 +415,7 @@ class GroupProcessor(Addon):
                                                            trackable_objects)
 
             if self.clustering_algorithm == 'dbscan':
-                self.cluster = self.DBSCAN_clustering(
+                self.cluster = self.dbscan_clustering(
                     centroids=features[:, temporal_data - 2:temporal_data],
                     distance_threshold_update=True)
                 # Cluster the centroids
@@ -429,8 +447,9 @@ class GroupProcessor(Addon):
                 chinese_whispers(G, seed=1337)
                 y = aggregate_clusters(G)
                 # Separate them into groups > self.min_group_size
+                labels = self.extract_cluster_ids(y)
                 groups, people_count = self.get_groups(boxes,
-                                                       y,
+                                                       labels,
                                                        centroids)
 
             print(f'Length of detected boxes {len(centroids)}'

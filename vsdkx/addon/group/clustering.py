@@ -31,10 +31,8 @@ class GroupProcessor(Addon):
         super().__init__(addon_config, model_settings, model_config,
                          drawing_config)
 
-        self.clustering_algorithm = addon_config.get('algorithm',
-                                                     'dbscan').lower()
-
-        self.min_group_size = addon_config.get('min_group_size', 2)
+        self.clustering_algorithm = addon_config['algorithm']
+        self.min_group_size = addon_config['min_group_size']
         self.temporal_len = 6
         self.feat_size = (self.temporal_len * 2) + 3
 
@@ -105,11 +103,11 @@ class GroupProcessor(Addon):
         """
         Calculates each boxes' centroid
         Args:
-            boxes (list): List of bounding boxes
+            boxes (np.ndarray): List of bounding boxes
             trackable_objects (TrackableObjects): List with trackable objects
 
         Returns:
-            (list): List with centroids
+            (np.ndarray): List with centroids
         """
 
         centroids = []

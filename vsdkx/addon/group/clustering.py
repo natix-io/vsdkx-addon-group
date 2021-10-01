@@ -24,6 +24,7 @@ class GroupProcessor(Addon):
         considered a group
         temporal_len (int): Size of temporal data to be used
         feat_size (int): Amount of features used in the algorithm
+        metric (string): Metric name which is used for clustering functions
     """
 
     def __init__(self, addon_config: dict, model_settings: dict,
@@ -35,6 +36,7 @@ class GroupProcessor(Addon):
         self.min_group_size = addon_config['min_group_size']
         self.temporal_len = 6
         self.feat_size = (self.temporal_len * 2) + 3
+        self.metric = 'euclidean'
 
         if self.clustering_algorithm == 'dbscan':
             self.distance_threshold = 0.5
@@ -60,7 +62,7 @@ class GroupProcessor(Addon):
 
         cluster = DBSCAN(eps=self.distance_threshold,
                          min_samples=1,
-                         metric='euclidean')
+                         metric=self.metric)
 
         return cluster
 
@@ -207,7 +209,7 @@ class GroupProcessor(Addon):
             print('ERROR! ')
 
         if self.clustering_algorithm == 'chinesewhispers':
-            features = dist.cdist(features, features, metric='euclidean')
+            features = dist.cdist(features, features, metric=self.metric)
 
         features = MinMaxScaler().fit_transform(features)
 
@@ -349,7 +351,7 @@ class GroupProcessor(Addon):
                                       self.distance_threshold * 0.95
 
         cluster = AgglomerativeClustering(
-            affinity='euclidean',
+            affinity=self.metric,
             linkage='ward',
             compute_distances=False,
             distance_threshold=self.distance_threshold,

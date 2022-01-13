@@ -35,7 +35,7 @@ class GroupProcessor(Addon):
         self.temporal_len = 6
         self.feat_size = (self.temporal_len * 2) + 3
         self.min_group_size = addon_config["min_group_size"]
-        self.cluster = self.DBSCAN_clustering(distance_threshold_update=False)
+        self.cluster = self._clustering(distance_threshold_update=False)
 
     def DBSCAN_clustering(self,
                           centroids=None,
@@ -61,6 +61,11 @@ class GroupProcessor(Addon):
                          metric='euclidean')
 
         return cluster
+
+    def _clustering(self,
+                    centroids=None,
+                    distance_threshold_update=True):
+        return self.DBSCAN_clustering(centroids, distance_threshold_update)
 
     def get_centroids(self, boxes):
         """
@@ -335,7 +340,8 @@ class GroupProcessor(Addon):
             # Get the bounding boxes centroids
             features, centroids, boxes = self.get_features(boxes,
                                                            trackable_objects)
-            self.cluster = self.DBSCAN_clustering(
+
+            self.cluster = self._clustering(
                 centroids=features[:, temporal_data - 2:temporal_data],
                 distance_threshold_update=True)
 

@@ -35,11 +35,9 @@ class GroupProcessor(Addon):
         self.temporal_len = 6
         self.feat_size = (self.temporal_len * 2) + 3
         self.min_group_size = addon_config["min_group_size"]
-        self.cluster = self._clustering(distance_threshold_update=False)
+        self.cluster = self._clustering()
 
-    def DBSCAN_clustering(self,
-                          centroids=None,
-                          distance_threshold_update=True):
+    def DBSCAN_clustering(self):
         """
         Inits DBSCANClustering & Updates distance threshold
 
@@ -47,25 +45,35 @@ class GroupProcessor(Addon):
             cluster (DBSCANClustering): Clustering object
         """
 
-        if distance_threshold_update:
-            distances = np.unique(
-                dist.cdist(centroids, centroids))
-
-            distance_threshold = abs(distances.mean() - distances.std())
-
-            self.distance_threshold = distance_threshold * 0.05 + \
-                                      self.distance_threshold * 0.95
-
         cluster = DBSCAN(eps=self.distance_threshold,
                          min_samples=1,
                          metric='euclidean')
 
         return cluster
 
-    def _clustering(self,
-                    centroids=None,
-                    distance_threshold_update=True):
-        return self.DBSCAN_clustering(centroids, distance_threshold_update)
+    def _clustering(self):
+        """
+        Wrapper method for clustering algorithm
+
+        Returns:
+            cluster (DBSCANClustering): Clustering object
+        """
+        return self.DBSCAN_clustering()
+
+    def _update_distance_threshold(self, centroids):
+        """
+        Updates distance threshold
+
+        Args:
+            centroids ():
+        """
+        distances = np.unique(
+            dist.cdist(centroids, centroids))
+
+        distance_threshold = abs(distances.mean() - distances.std())
+
+        self.distance_threshold = distance_threshold * 0.05 + \
+                                  self.distance_threshold * 0.95
 
     def get_centroids(self, boxes):
         """
@@ -341,9 +349,9 @@ class GroupProcessor(Addon):
             features, centroids, boxes = self.get_features(boxes,
                                                            trackable_objects)
 
-            self.cluster = self._clustering(
-                centroids=features[:, temporal_data - 2:temporal_data],
-                distance_threshold_update=True)
+            self._update_distance_threshold(
+                features[:, temporal_data - 2:temporal_data])
+            self.cluster = self._clustering()
 
             print(f'Length of detected boxes {len(centroids)}'
                   f' length of trackable objects {len(trackable_objects)}')

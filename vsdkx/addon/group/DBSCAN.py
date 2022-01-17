@@ -346,8 +346,8 @@ class GroupProcessor(Addon):
 
         if len(boxes) > 1:
             # Get the bounding boxes centroids
-            features, centroids, boxes = self.get_features(boxes,
-                                                           trackable_objects)
+            features, centroids, boxes = \
+                self.get_features(boxes, trackable_objects)
 
             self._update_distance_threshold(
                 features[:, temporal_data - 2:temporal_data])

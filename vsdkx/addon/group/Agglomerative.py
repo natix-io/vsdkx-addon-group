@@ -2,7 +2,7 @@ from sklearn.cluster import AgglomerativeClustering
 from vsdkx.addon.group.DBSCAN import GroupProcessor
 
 
-class AgglomerativeGroupDetector(GroupProcessor):
+class AgglomerativeGroupProcessor(GroupProcessor):
     """
     Clusters the detected bounding boxes into groups, based on the distance
     between the bounding boxes:

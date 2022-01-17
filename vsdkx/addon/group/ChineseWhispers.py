@@ -6,9 +6,10 @@ from sklearn.preprocessing import MinMaxScaler
 from chinese_whispers import chinese_whispers, aggregate_clusters
 
 from vsdkx.addon.group.DBSCAN import GroupProcessor
+from vsdkx.core.structs import AddonObject, Inference
 
 
-class GroupDetector(GroupProcessor):
+class ChineseWhispersGroupProcessor(GroupProcessor):
     """
     Clusters the detected bounding boxes into groups, based on the distance
     between the bounding boxes:

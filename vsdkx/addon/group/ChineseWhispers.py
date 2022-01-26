@@ -5,11 +5,11 @@ from scipy.spatial import distance as dist
 from sklearn.preprocessing import MinMaxScaler
 from chinese_whispers import chinese_whispers, aggregate_clusters
 
-from vsdkx.addon.group.DBSCAN import GroupProcessor
 from vsdkx.core.structs import AddonObject, Inference
+from vsdkx.addon.group.interfaces import BaseGroupProcessor
 
 
-class ChineseWhispersGroupProcessor(GroupProcessor):
+class ChineseWhispersGroupProcessor(BaseGroupProcessor):
     """
     Clusters the detected bounding boxes into groups, based on the distance
     between the bounding boxes:
@@ -36,7 +36,7 @@ class ChineseWhispersGroupProcessor(GroupProcessor):
         super().__init__(addon_config, model_settings, model_config,
                          drawing_config)
 
-        self.distance_threshold = 0.2
+        self.distance_threshold = addon_config.get("distance_threshold", 0.2)
 
     def get_features(self, boxes, trackable_objects):
         """

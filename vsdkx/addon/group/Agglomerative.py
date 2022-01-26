@@ -37,11 +37,12 @@ class AgglomerativeGroupProcessor(BaseGroupProcessor):
 
         return cluster
 
-    def _clustering(self):
+    def _clustering(self, features):
         """
         Wrapper method for clustering algorithm
 
         Returns:
             cluster (AgglomerativeClustering): Clustering object
         """
-        return self.agglomerative_clustering()
+        cluster = self.agglomerative_clustering()
+        return cluster.fit(features).labels_

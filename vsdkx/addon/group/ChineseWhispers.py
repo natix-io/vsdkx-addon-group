@@ -166,42 +166,7 @@ class ChineseWhispersGroupProcessor(BaseGroupProcessor):
             centroids_list.append(centroid)
         return np.array(cluster_boxes), np.array(centroids_list)
 
-    def post_process(self, addon_object: AddonObject) -> AddonObject:
-        """
-        Clusters the given bounding boxes to small clusters by their distance
-
-        Args:
-            addon_object (AddonObject):
-        Returns:
-            (AddonObject): addon object has updated information for inference
-            result
-        """
-        groups = []
-        people_count = 0
-        boxes = np.array(addon_object.inference.boxes)
-        temporal_data = self.temporal_len * 2
-        trackable_objects = addon_object.shared["trackable_objects"]
-
-        if len(boxes) > 1:
-            # Get the bounding boxes centroids
-            features, centroids, boxes = \
-                self.get_features(boxes, trackable_objects)
-
-            self._update_distance_threshold(
-                centroids=features[:, temporal_data - 2:temporal_data])
-
-            print(f'Length of detected boxes {len(centroids)}'
-                  f' length of trackable objects {len(trackable_objects)}')
-            # Cluster the centroids
-            G = nx.from_numpy_matrix(features)
-            chinese_whispers(G, seed=1337)
-            y = aggregate_clusters(G)
-            # Separate them into groups > self.min_group_size
-            groups, people_count = self.get_groups(boxes,
-                                                   y,
-                                                   centroids)
-
-        addon_object.inference.extra['tracked_groups'] = groups
-        addon_object.inference.extra['objects_in_groups'] = people_count
-
-        return addon_object
+    def _clustering(self, features):
+        graph = nx.from_numpy_matrix(features)
+        chinese_whispers(graph, seed=1337)
+        return aggregate_clusters(graph)

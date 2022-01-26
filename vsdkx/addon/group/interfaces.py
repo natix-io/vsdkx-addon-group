@@ -36,12 +36,12 @@ class BaseGroupProcessor(Addon, ABC):
         self.temporal_len = 6
         self.feat_size = (self.temporal_len * 2) + 3
         self.min_group_size = addon_config["min_group_size"]
-        self.cluster = self._clustering()
+        # self.cluster = self._clustering()
 
         self.distance_threshold = None
 
     @abstractmethod
-    def _clustering(self):
+    def _clustering(self, features):
         """
         Wrapper method for clustering algorithm
 
@@ -341,15 +341,14 @@ class BaseGroupProcessor(Addon, ABC):
 
             self._update_distance_threshold(
                 features[:, temporal_data - 2:temporal_data])
-            self.cluster = self._clustering()
 
             print(f'Length of detected boxes {len(centroids)}'
                   f' length of trackable objects {len(trackable_objects)}')
             # Cluster the centroids
-            y = self.cluster.fit(features)
+            y = self._clustering(features)
             # Separate them into groups > self.min_group_size
             groups, people_count = self.get_groups(boxes,
-                                                   y.labels_,
+                                                   y,
                                                    centroids)
 
         addon_object.inference.extra['tracked_groups'] = groups

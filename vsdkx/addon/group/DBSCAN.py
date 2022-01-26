@@ -37,11 +37,12 @@ class DBSCANGroupProcessor(BaseGroupProcessor):
 
         return cluster
 
-    def _clustering(self):
+    def _clustering(self, features):
         """
         Wrapper method for clustering algorithm
 
         Returns:
             cluster (DBSCANClustering): Clustering object
         """
-        return self.dbscan_clustering()
+        cluster = self.dbscan_clustering()
+        return cluster.fit(features).labels_

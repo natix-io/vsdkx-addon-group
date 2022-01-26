@@ -1,8 +1,8 @@
 from sklearn.cluster import AgglomerativeClustering
-from vsdkx.addon.group.DBSCAN import GroupProcessor
+from vsdkx.addon.group.interfaces import BaseGroupProcessor
 
 
-class AgglomerativeGroupDetector(GroupProcessor):
+class AgglomerativeGroupProcessor(BaseGroupProcessor):
     """
     Clusters the detected bounding boxes into groups, based on the distance
     between the bounding boxes:
@@ -19,7 +19,7 @@ class AgglomerativeGroupDetector(GroupProcessor):
                  model_config: dict, drawing_config: dict):
         super().__init__(addon_config, model_settings, model_config,
                          drawing_config)
-        self.distance_threshold = 0.2
+        self.distance_threshold = addon_config.get("distance_threshold", 0.2)
 
     def agglomerative_clustering(self):
         """

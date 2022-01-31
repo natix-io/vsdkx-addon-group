@@ -1,9 +1,8 @@
-from sklearn.cluster import DBSCAN
-
+from sklearn.cluster import AgglomerativeClustering
 from vsdkx.addon.group.interfaces import BaseGroupProcessor
 
 
-class DBSCANGroupProcessor(BaseGroupProcessor):
+class AgglomerativeGroupProcessor(BaseGroupProcessor):
     """
     Clusters the detected bounding boxes into groups, based on the distance
     between the bounding boxes:
@@ -20,20 +19,21 @@ class DBSCANGroupProcessor(BaseGroupProcessor):
                  model_config: dict, drawing_config: dict):
         super().__init__(addon_config, model_settings, model_config,
                          drawing_config)
+        self.distance_threshold = addon_config.get("distance_threshold", 0.2)
 
-        self.distance_threshold = addon_config.get("distance_threshold", 0.5)
-
-    def dbscan_clustering(self):
+    def agglomerative_clustering(self):
         """
-        Inits DBSCANClustering & Updates distance threshold
+        Inits AgglomerativeClustering & Updates distance threshold
 
         Returns:
-            cluster (DBSCANClustering): Clustering object
+            cluster (AgglomerativeClustering): Clustering object
         """
-
-        cluster = DBSCAN(eps=self.distance_threshold,
-                         min_samples=1,
-                         metric='euclidean')
+        cluster = AgglomerativeClustering(
+            affinity='euclidean',
+            linkage='ward',
+            compute_distances=False,
+            distance_threshold=self.distance_threshold,
+            n_clusters=None)
 
         return cluster
 
@@ -42,7 +42,7 @@ class DBSCANGroupProcessor(BaseGroupProcessor):
         Wrapper method for clustering algorithm
 
         Returns:
-            cluster (DBSCANClustering): Clustering object
+            cluster (AgglomerativeClustering): Clustering object
         """
-        cluster = self.dbscan_clustering()
+        cluster = self.agglomerative_clustering()
         return cluster.fit(features).labels_

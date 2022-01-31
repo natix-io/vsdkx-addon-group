@@ -342,8 +342,6 @@ class BaseGroupProcessor(Addon, ABC):
             self._update_distance_threshold(
                 features[:, temporal_data - 2:temporal_data])
 
-            print(f'Length of detected boxes {len(centroids)}'
-                  f' length of trackable objects {len(trackable_objects)}')
             # Cluster the centroids
             y = self._clustering(features)
             # Separate them into groups > self.min_group_size

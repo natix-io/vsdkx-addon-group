@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -8,6 +9,8 @@ from scipy.spatial import distance as dist
 
 from vsdkx.core.interfaces import Addon
 from vsdkx.core.structs import AddonObject
+
+LOG_TAG = "Addon Group"
 
 
 class BaseGroupProcessor(Addon, ABC):
@@ -32,6 +35,7 @@ class BaseGroupProcessor(Addon, ABC):
                  model_config: dict, drawing_config: dict):
         super().__init__(addon_config, model_settings, model_config,
                          drawing_config)
+        self._logger = logging.getLogger(LOG_TAG)
 
         self.temporal_len = 6
         self.feat_size = (self.temporal_len * 2) + 3
@@ -250,7 +254,7 @@ class BaseGroupProcessor(Addon, ABC):
                                       max(cluster_boxes[:, 3])])
                 group_boxes.append(group_box)
                 people_count.append(len(cluster_boxes))
-
+        
         return group_boxes, people_count
 
     def group_by_direction(self, centroids, boxes, trackable_objects):
@@ -333,7 +337,10 @@ class BaseGroupProcessor(Addon, ABC):
         boxes = np.array(addon_object.inference.boxes)
         temporal_data = self.temporal_len * 2
         trackable_objects = addon_object.shared["trackable_objects"]
-
+        self._logger.debug(
+            f"received {len(trackable_objects)} trackable objects"
+        )
+        
         if len(boxes) > 1:
             # Get the bounding boxes centroids
             features, centroids, boxes = \

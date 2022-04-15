@@ -10,7 +10,7 @@ from scipy.spatial import distance as dist
 from vsdkx.core.interfaces import Addon
 from vsdkx.core.structs import AddonObject
 
-LOG_TAG = "Addon Group"
+LOG_TAG = "Group Addon"
 
 
 class BaseGroupProcessor(Addon, ABC):

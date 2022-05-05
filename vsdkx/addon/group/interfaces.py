@@ -40,7 +40,6 @@ class BaseGroupProcessor(Addon, ABC):
         self.temporal_len = 6
         self.feat_size = (self.temporal_len * 2) + 3
         self.min_group_size = addon_config["min_group_size"]
-        # self.cluster = self._clustering()
 
         self.distance_threshold = None
 
@@ -341,7 +340,7 @@ class BaseGroupProcessor(Addon, ABC):
             f"received {len(trackable_objects)} trackable objects"
         )
         
-        if len(boxes) > 1:
+        if len(boxes) > 1 and len(trackable_objects) > 1:
             # Get the bounding boxes centroids
             features, centroids, boxes = \
                 self.get_features(boxes, trackable_objects)
